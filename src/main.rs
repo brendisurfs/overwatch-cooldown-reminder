@@ -1,13 +1,10 @@
 pub mod events;
 use events::handle_events;
 use std::{cell::Cell, time::Duration};
-use tokio::sync::watch::{Receiver, Sender};
-use tungstenite::connect;
-use url::Url;
+use tokio::sync::watch::Receiver;
 
 use dioxus::prelude::*;
 use dioxus_desktop::{tao::dpi::PhysicalPosition, LogicalSize, WindowBuilder};
-use dioxus_signals::{use_init_signal_rt, use_signal};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CooldownMsg {
@@ -30,6 +27,7 @@ async fn main() {
     tokio::spawn(async move {
         handle_events(tx).await;
     });
+
     dioxus_desktop::launch_with_props(
         app,
         AppProps {
@@ -65,6 +63,14 @@ fn make_config() -> dioxus_desktop::Config {
 
 fn app(cx: Scope<AppProps>) -> Element {
     let status = use_state(cx, || CooldownMsg::HasCooldown);
+
+    use_effect(cx, (status,), |status| async move {
+        if status.0.get() == &CooldownMsg::NoCooldown {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            status.0.set(CooldownMsg::HasCooldown);
+            println!("reset cooldown");
+        }
+    });
     let _: &Coroutine<()> = use_coroutine(cx, |_| {
         let recv = cx.props.receiver.take();
         let status = status.to_owned();
@@ -72,22 +78,25 @@ fn app(cx: Scope<AppProps>) -> Element {
             if let Some(mut r) = recv {
                 while r.changed().await.is_ok() {
                     let msg = *r.borrow();
-                    status.set(msg);
+                    if status.get() != &CooldownMsg::NoCooldown {
+                        status.set(msg);
+                        println!("Cooldown used.");
+                    }
                 }
             }
         }
     });
-    cx.render(rsx! {
-        div {
-            width: "100%",
-            color: "red",
-            height: "500px",
-            font_size: "80px",
-            text_align: "center",
-            background_color: "transparent",
-            "{status:?}"
 
-        }
+    cx.render(rsx! {
+    div {
+        width: "100%",
+        color: "red",
+        height: "500px",
+        font_size: "80px",
+        text_align: "center",
+        background_color: "transparent",
+        "{status:?}"
+    }
     })
 }
 
