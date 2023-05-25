@@ -55,6 +55,17 @@ fn make_config() -> dioxus_desktop::Config {
                     overscroll-behavior-x: none;
                     overscroll-behavior-y: none;
                 }
+
+                .blink_me {
+                    pointer-events: none;
+                    animation: blinker 0.5s step-start infinite;
+                  }
+                  
+                  @keyframes blinker {
+                    50% {
+                      opacity: 0;
+                    }
+                  }
             </style>
         "#
             .to_owned(),
@@ -64,6 +75,7 @@ fn make_config() -> dioxus_desktop::Config {
 fn app(cx: Scope<AppProps>) -> Element {
     let status = use_state(cx, || CooldownMsg::HasCooldown);
 
+    // handle turn off cooldown
     use_effect(cx, (status,), |status| async move {
         if status.0.get() == &CooldownMsg::NoCooldown {
             tokio::time::sleep(Duration::from_secs(5)).await;
@@ -71,6 +83,7 @@ fn app(cx: Scope<AppProps>) -> Element {
             println!("reset cooldown");
         }
     });
+    // keypress handler.
     let _: &Coroutine<()> = use_coroutine(cx, |_| {
         let recv = cx.props.receiver.take();
         let status = status.to_owned();
@@ -90,12 +103,19 @@ fn app(cx: Scope<AppProps>) -> Element {
     cx.render(rsx! {
     div {
         width: "100%",
-        color: "red",
+        class: "blink_me",
+        color: match status.get() {
+                    &CooldownMsg::HasCooldown => "red",
+                    _ => "blue",
+                },
         height: "500px",
-        font_size: "80px",
         text_align: "center",
+        font_size: "120px",
         background_color: "transparent",
-        "{status:?}"
+        match status.get() {
+            &CooldownMsg::HasCooldown => "USE YOUR COOLDOWNS",
+            &CooldownMsg::NoCooldown => "",
+        }
     }
     })
 }
@@ -104,8 +124,10 @@ fn make_window() -> WindowBuilder {
     WindowBuilder::new()
         .with_transparent(true)
         .with_decorations(false)
+        .with_focused(false)
         .with_resizable(false)
         .with_always_on_top(true)
-        .with_position(PhysicalPosition::new(0, 0))
-        .with_max_inner_size(LogicalSize::new(100000, 100))
+        .with_min_inner_size(LogicalSize::new(2048, 200))
+        .with_position(PhysicalPosition::new(0, 10))
+        .with_max_inner_size(LogicalSize::new(2048, 200))
 }

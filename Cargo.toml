@@ -6,16 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossterm = "0.26.1"
 dioxus = { git = "https://github.com/DioxusLabs/dioxus.git", version = "0.3.2" }
-inputbot = { git = "https://github.com/obv-mikhail/InputBot", branch = "develop" }
 dioxus-signals = { git = "https://github.com/DioxusLabs/dioxus.git", version = "0.0.0" }
 dioxus-desktop = { git = "https://github.com/DioxusLabs/dioxus.git", version = "0.3.0" }
 tokio = { version = "1.28.1", features = ["sync", "net"] }
 crossbeam-channel = "0.5.8"
-fermi = { git = "https://github.com/DioxusLabs/dioxus.git", version = "0.3.0" }
-tungstenite = "0.19.0"
-url = "2.3.1"
 rdev = "0.5.2"
-futures-util = "0.3.28"
-zmq = "0.10.0"
