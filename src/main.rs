@@ -1,19 +1,12 @@
 pub mod events;
 use events::handle_events;
-use rdev::{listen, EventType};
-use std::{cell::Cell, net::TcpListener};
+use std::{cell::Cell, time::Duration};
 use tokio::sync::watch::{Receiver, Sender};
-use tungstenite::{accept, connect, Message};
+use tungstenite::connect;
 use url::Url;
 
-use dioxus::{
-    html::input_data::keyboard_types::{Key, KeyboardEvent},
-    prelude::*,
-};
-use dioxus_desktop::{
-    tao::{dpi::PhysicalPosition, event_loop},
-    LogicalSize, WindowBuilder,
-};
+use dioxus::prelude::*;
+use dioxus_desktop::{tao::dpi::PhysicalPosition, LogicalSize, WindowBuilder};
 use dioxus_signals::{use_init_signal_rt, use_signal};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -27,69 +20,24 @@ pub struct State {
     pub status: CooldownMsg,
 }
 
-impl State {
-    pub fn set(&mut self, status: CooldownMsg) {
-        self.status = status;
-    }
-}
-
 pub struct AppProps {
-    sender: Cell<Option<Sender<CooldownMsg>>>,
-    receiver: Cell<Option<Receiver<CooldownMsg>>>,
+    pub receiver: Cell<Option<Receiver<CooldownMsg>>>,
 }
 
 #[tokio::main]
 async fn main() {
-    let (tx, mut rx) = tokio::sync::watch::channel(CooldownMsg::HasCooldown);
+    let (tx, rx) = tokio::sync::watch::channel(CooldownMsg::HasCooldown);
     tokio::spawn(async move {
-        handle_events().await;
+        handle_events(tx).await;
     });
     dioxus_desktop::launch_with_props(
         app,
         AppProps {
-            sender: Cell::new(Some(tx)),
             receiver: Cell::new(Some(rx)),
         },
         make_config(),
     );
 }
-
-fn app(cx: Scope<AppProps>) -> Element {
-    println!("re-render check");
-    cx.render(rsx! {
-        div {
-            width: "100%",
-            color: "red",
-            height: "500px",
-            font_size: "80px",
-            text_align: "center",
-            background_color: "transparent",
-            cooldown_text {}
-
-        }
-    })
-}
-
-fn cooldown_text(cx: Scope) -> Element {
-    use_init_signal_rt(cx);
-    let text_state = use_signal(cx, || CooldownMsg::HasCooldown);
-
-    let co: &Coroutine<()> = use_coroutine(cx, |rx| async move {
-        let (mut socket, res) = connect(Url::parse("ws://localhost:7878").unwrap()).unwrap();
-        let msg = socket.read_message().unwrap();
-        println!("msg: {:?}", msg);
-        if msg.is_text() {
-            text_state.clone().set(CooldownMsg::NoCooldown);
-            println!("{:?}", msg);
-        }
-    });
-    cx.render(rsx! {
-        div {
-            format!("{:?}", text_state.read())
-        }
-    })
-}
-
 fn make_config() -> dioxus_desktop::Config {
     dioxus_desktop::Config::default()
         .with_window(make_window())
@@ -113,6 +61,34 @@ fn make_config() -> dioxus_desktop::Config {
         "#
             .to_owned(),
         )
+}
+
+fn app(cx: Scope<AppProps>) -> Element {
+    let status = use_state(cx, || CooldownMsg::HasCooldown);
+    let _: &Coroutine<()> = use_coroutine(cx, |_| {
+        let recv = cx.props.receiver.take();
+        let status = status.to_owned();
+        async move {
+            if let Some(mut r) = recv {
+                while r.changed().await.is_ok() {
+                    let msg = *r.borrow();
+                    status.set(msg);
+                }
+            }
+        }
+    });
+    cx.render(rsx! {
+        div {
+            width: "100%",
+            color: "red",
+            height: "500px",
+            font_size: "80px",
+            text_align: "center",
+            background_color: "transparent",
+            "{status:?}"
+
+        }
+    })
 }
 
 fn make_window() -> WindowBuilder {
