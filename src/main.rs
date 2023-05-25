@@ -1,7 +1,8 @@
 pub mod events;
 use events::handle_events;
 use rdev::{listen, EventType};
-use std::net::TcpListener;
+use std::{cell::Cell, net::TcpListener};
+use tokio::sync::watch::{Receiver, Sender};
 use tungstenite::{accept, connect, Message};
 use url::Url;
 
@@ -32,15 +33,28 @@ impl State {
     }
 }
 
+pub struct AppProps {
+    sender: Cell<Option<Sender<CooldownMsg>>>,
+    receiver: Cell<Option<Receiver<CooldownMsg>>>,
+}
+
 #[tokio::main]
 async fn main() {
+    let (tx, mut rx) = tokio::sync::watch::channel(CooldownMsg::HasCooldown);
     tokio::spawn(async move {
         handle_events().await;
     });
-    dioxus_desktop::launch_cfg(app, make_config());
+    dioxus_desktop::launch_with_props(
+        app,
+        AppProps {
+            sender: Cell::new(Some(tx)),
+            receiver: Cell::new(Some(rx)),
+        },
+        make_config(),
+    );
 }
 
-fn app(cx: Scope) -> Element {
+fn app(cx: Scope<AppProps>) -> Element {
     println!("re-render check");
     cx.render(rsx! {
         div {
