@@ -8,7 +8,7 @@ pub async fn handle_events(tx: tokio::sync::watch::Sender<CooldownMsg>) {
         listen(move |event| match event.event_type {
             EventType::KeyPress(key) => {
                 if key == rdev::Key::KeyE {
-                    tx.send(CooldownMsg::NoCooldown).unwrap();
+                    tx.send(CooldownMsg::NoCooldown).expect("key to be sent");
                 }
             }
             _ => (),

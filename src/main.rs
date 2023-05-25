@@ -56,7 +56,7 @@ fn make_config() -> dioxus_desktop::Config {
                     overscroll-behavior-y: none;
                 }
 
-                .blink_me {
+                .blinking_text {
                     pointer-events: none;
                     animation: blinker 0.5s step-start infinite;
                   }
@@ -103,7 +103,7 @@ fn app(cx: Scope<AppProps>) -> Element {
     cx.render(rsx! {
     div {
         width: "100%",
-        class: "blink_me",
+        class: "blinking_text",
         color: match status.get() {
                     &CooldownMsg::HasCooldown => "red",
                     _ => "blue",
