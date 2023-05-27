@@ -1,5 +1,7 @@
 pub mod audio;
 pub mod events;
+pub mod hero_configs;
+
 use events::handle_events;
 use std::{cell::Cell, time::Duration};
 use tokio::sync::watch::Receiver;
@@ -10,6 +12,7 @@ use dioxus_desktop::{tao::dpi::PhysicalPosition, LogicalSize, WindowBuilder};
 // use crate::audio::play_audio_idk;
 use futures_util::StreamExt;
 
+// the cooldowns state.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CooldownMsg {
     HasCooldown,
@@ -23,12 +26,16 @@ pub enum CooldownKeys {
     EKey,
 }
 
+// Shared channel between threads.
 pub struct AppProps {
     pub receiver: Cell<Option<Receiver<CooldownKeys>>>,
 }
 
 #[tokio::main]
 async fn main() {
+    // we just start with EKey as an arbitrary value,
+    // since all key-press values are being sent to the channel,
+    // just matters that we get updates from the channel (changes).
     let (tx, rx) = tokio::sync::watch::channel(CooldownKeys::EKey);
     tokio::spawn(async move {
         handle_events(tx).await;
@@ -83,7 +90,7 @@ fn app(cx: Scope<AppProps>) -> Element {
                 match msg {
                     CooldownMsg::HasCooldown => println!("has cooldown msg"),
                     CooldownMsg::NoCooldown => {
-                        tokio::time::sleep(Duration::from_secs(8)).await;
+                        tokio::time::sleep(Duration::from_secs(14)).await;
                         shift_key_status.set(CooldownMsg::HasCooldown);
                         println!("Shift: {:?}", shift_key_status.get());
                     }
@@ -99,7 +106,7 @@ fn app(cx: Scope<AppProps>) -> Element {
                 match msg {
                     CooldownMsg::HasCooldown => println!("re-upped cooldown"),
                     CooldownMsg::NoCooldown => {
-                        tokio::time::sleep(Duration::from_secs(8)).await;
+                        tokio::time::sleep(Duration::from_secs(10)).await;
                         e_key_status.set(CooldownMsg::HasCooldown);
                         println!("EKey: {:?}", e_key_status.get());
                     }
