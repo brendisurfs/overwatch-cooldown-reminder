@@ -145,9 +145,10 @@ fn app(cx: Scope<AppProps>) -> Element {
     cx.render(rsx! {
         div {
             color: "red",
-            width: "100%",
+            width: "1224px",
             height: "300px",
             font_size: "100px",
+            white_space: "nowrap",
             text_align: "center",
             class: "blinking_text",
             font_family: "Comic Sans MS" ,
@@ -191,7 +192,7 @@ fn make_window() -> WindowBuilder {
         .with_transparent(true)
         .with_decorations(false)
         .with_always_on_top(true)
-        .with_position(PhysicalPosition::new(256, 512))
-        .with_min_inner_size(LogicalSize::new(2048, 300))
-        .with_max_inner_size(LogicalSize::new(2048, 300))
+        .with_position(PhysicalPosition::new(900, 512))
+        .with_min_inner_size(LogicalSize::new(1224, 160))
+        .with_max_inner_size(LogicalSize::new(1224, 160))
 }
