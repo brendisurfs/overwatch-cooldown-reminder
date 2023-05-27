@@ -1,3 +1,4 @@
+pub mod audio;
 pub mod events;
 use events::handle_events;
 use std::{cell::Cell, time::Duration};
@@ -6,15 +7,12 @@ use tokio::sync::watch::Receiver;
 use dioxus::prelude::*;
 use dioxus_desktop::{tao::dpi::PhysicalPosition, LogicalSize, WindowBuilder};
 
+use crate::audio::play_audio_idk;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CooldownMsg {
     HasCooldown,
     NoCooldown,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct State {
-    pub status: CooldownMsg,
 }
 
 pub struct AppProps {
@@ -28,59 +26,29 @@ async fn main() {
         handle_events(tx).await;
     });
 
-    dioxus_desktop::launch_with_props(
-        app,
-        AppProps {
-            receiver: Cell::new(Some(rx)),
-        },
-        make_config(),
-    );
+    let init_state = AppProps {
+        receiver: Cell::new(Some(rx)),
+    };
+    dioxus_desktop::launch_with_props(app, init_state, make_config());
 }
+
 fn make_config() -> dioxus_desktop::Config {
     dioxus_desktop::Config::default()
         .with_window(make_window())
-        .with_custom_head(
-            r#"
-            <style type="text/css">
-                html, body {
-                    height: 500px;
-                    margin: 0;
-                    overscroll-behavior-y: none;
-                    overscroll-behavior-x: none;
-                    overflow: hidden;
-                }
-                #main, #bodywrap {
-                    height: 100%;
-                    margin: 0;
-                    overscroll-behavior-x: none;
-                    overscroll-behavior-y: none;
-                }
-
-                .blinking_text {
-                    pointer-events: none;
-                    animation: blinker 0.5s step-start infinite;
-                  }
-                  
-                  @keyframes blinker {
-                    50% {
-                      opacity: 0;
-                    }
-                  }
-            </style>
-        "#
-            .to_owned(),
-        )
+        .with_custom_head(include_str!("../style.html").to_string())
 }
 
 fn app(cx: Scope<AppProps>) -> Element {
     let status = use_state(cx, || CooldownMsg::HasCooldown);
-
     // handle turn off cooldown
     use_effect(cx, (status,), |status| async move {
         if status.0.get() == &CooldownMsg::NoCooldown {
-            tokio::time::sleep(Duration::from_secs(5)).await;
+            tokio::time::sleep(Duration::from_secs(8)).await;
             status.0.set(CooldownMsg::HasCooldown);
-            println!("reset cooldown");
+            tokio::task::spawn_blocking(move || {
+                play_audio_idk();
+            });
+            println!("reset cooldown.");
         }
     });
     // keypress handler.
@@ -100,34 +68,63 @@ fn app(cx: Scope<AppProps>) -> Element {
         }
     });
 
+    let style = r#"
+        display: flex;
+        flex-direction: row;
+    "#;
+
     cx.render(rsx! {
-    div {
-        width: "100%",
-        class: "blinking_text",
-        color: match status.get() {
-                    &CooldownMsg::HasCooldown => "red",
-                    _ => "blue",
+        div {
+            color: "red",
+            width: "100%",
+            height: "300px",
+            font_size: "140px",
+            text_align: "center",
+            background_color: "transparent",
+            match status.get() {
+                &CooldownMsg::HasCooldown => {
+                    cx.render(rsx! {
+                        div  {
+                                class: "blinking_text",
+                                style: "{style}",
+                                image_component {}
+                                    div {
+                                        "USE YOUR COOLDOWNS"
+                                    }
+                                image_component {}
+                            }
+                        })
                 },
-        height: "500px",
-        text_align: "center",
-        font_size: "120px",
-        background_color: "transparent",
-        match status.get() {
-            &CooldownMsg::HasCooldown => "USE YOUR COOLDOWNS",
-            &CooldownMsg::NoCooldown => "",
-        }
+                &CooldownMsg::NoCooldown => cx.render(rsx! {
+                    div {}
+                }),
+            }
     }
+    })
+}
+
+fn image_component(cx: Scope) -> Element {
+    let image_path = "assets/image.jpg";
+
+    cx.render(rsx! {
+        div {
+            img {
+                src: "{image_path}",
+                width: "200px",
+                height: "180px"
+            }
+        }
     })
 }
 
 fn make_window() -> WindowBuilder {
     WindowBuilder::new()
-        .with_transparent(true)
-        .with_decorations(false)
         .with_focused(false)
         .with_resizable(false)
+        .with_transparent(true)
+        .with_decorations(false)
         .with_always_on_top(true)
-        .with_min_inner_size(LogicalSize::new(2048, 200))
-        .with_position(PhysicalPosition::new(0, 10))
-        .with_max_inner_size(LogicalSize::new(2048, 200))
+        .with_position(PhysicalPosition::new(256, 512))
+        .with_min_inner_size(LogicalSize::new(2048, 300))
+        .with_max_inner_size(LogicalSize::new(2048, 300))
 }
