@@ -7,7 +7,8 @@ use tokio::sync::watch::Receiver;
 use dioxus::prelude::*;
 use dioxus_desktop::{tao::dpi::PhysicalPosition, LogicalSize, WindowBuilder};
 
-use crate::audio::play_audio_idk;
+// use crate::audio::play_audio_idk;
+use futures_util::StreamExt;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CooldownMsg {
@@ -15,13 +16,20 @@ pub enum CooldownMsg {
     NoCooldown,
 }
 
+// keys tied to cooldowns.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum CooldownKeys {
+    ShiftKey,
+    EKey,
+}
+
 pub struct AppProps {
-    pub receiver: Cell<Option<Receiver<CooldownMsg>>>,
+    pub receiver: Cell<Option<Receiver<CooldownKeys>>>,
 }
 
 #[tokio::main]
 async fn main() {
-    let (tx, rx) = tokio::sync::watch::channel(CooldownMsg::HasCooldown);
+    let (tx, rx) = tokio::sync::watch::channel(CooldownKeys::EKey);
     tokio::spawn(async move {
         handle_events(tx).await;
     });
@@ -39,31 +47,65 @@ fn make_config() -> dioxus_desktop::Config {
 }
 
 fn app(cx: Scope<AppProps>) -> Element {
-    let status = use_state(cx, || CooldownMsg::HasCooldown);
-    // handle turn off cooldown
-    use_effect(cx, (status,), |status| async move {
-        if status.0.get() == &CooldownMsg::NoCooldown {
+    let e_key_status = use_state(cx, || CooldownMsg::HasCooldown);
+    let shift_key_status = use_state(cx, || CooldownMsg::HasCooldown);
+
+    // handle turn off e key cooldown
+    use_effect(cx, e_key_status, |e_key_status| async move {
+        if e_key_status.get() == &CooldownMsg::NoCooldown {
             tokio::time::sleep(Duration::from_secs(8)).await;
-            status.0.set(CooldownMsg::HasCooldown);
-            tokio::task::spawn_blocking(move || {
-                play_audio_idk();
-            });
+            e_key_status.set(CooldownMsg::HasCooldown);
             println!("reset cooldown.");
         }
     });
-    // keypress handler.
     let _: &Coroutine<()> = use_coroutine(cx, |_| {
         let recv = cx.props.receiver.take();
-        let status = status.to_owned();
+        let e_key_status = e_key_status.to_owned();
+        let shift_key_status = shift_key_status.to_owned();
         async move {
             if let Some(mut r) = recv {
                 while r.changed().await.is_ok() {
                     let msg = *r.borrow();
-                    if status.get() != &CooldownMsg::NoCooldown {
-                        status.set(msg);
-                        println!("Cooldown used.");
+                    if msg == CooldownKeys::EKey {
+                        if e_key_status.get() != &CooldownMsg::NoCooldown {
+                            e_key_status.set(CooldownMsg::NoCooldown);
+                            println!("EKEY Cooldown used.");
+                        }
+                    } else if msg == CooldownKeys::ShiftKey {
+                        if shift_key_status.get() != &CooldownMsg::NoCooldown {
+                            shift_key_status.set(CooldownMsg::NoCooldown);
+                            println!("SHIFT Cooldown used.");
+                        }
                     }
                 }
+            }
+        }
+    });
+
+    // handle turn off shift key cooldown
+    let shift_coroutine = use_coroutine(cx, |mut rx: UnboundedReceiver<CooldownMsg>| {
+        let shift_key_status = shift_key_status.to_owned();
+        async move {
+            match rx.next().await {
+                Some(msg) => match msg {
+                    CooldownMsg::HasCooldown => println!("has cooldown msg"),
+                    CooldownMsg::NoCooldown => {
+                        tokio::time::sleep(Duration::from_secs(8)).await;
+                        shift_key_status.set(CooldownMsg::HasCooldown);
+                        println!("no cooldown msg");
+                    }
+                },
+                None => (),
+            }
+        }
+    });
+    use_effect(cx, shift_key_status, |shift_key_status| {
+        let shift_key_status = shift_key_status.to_owned();
+        let shift_coroutine = shift_coroutine.to_owned();
+        async move {
+            if shift_key_status.get() == &CooldownMsg::NoCooldown {
+                shift_coroutine.send(CooldownMsg::NoCooldown);
+                println!("reset cooldown sent to coroutine");
             }
         }
     });
@@ -78,28 +120,24 @@ fn app(cx: Scope<AppProps>) -> Element {
             color: "red",
             width: "100%",
             height: "300px",
-            font_size: "140px",
+            font_size: "60px",
             text_align: "center",
             background_color: "transparent",
-            match status.get() {
+            match e_key_status.get() {
                 &CooldownMsg::HasCooldown => {
-                    cx.render(rsx! {
-                        div  {
-                                class: "blinking_text",
-                                style: "{style}",
-                                image_component {}
-                                    div {
-                                        "USE YOUR COOLDOWNS"
-                                    }
-                                image_component {}
-                            }
-                        })
+                    match shift_key_status.get() {
+                        &CooldownMsg::HasCooldown => "USE YOUR COOLDOWNS",
+                        &CooldownMsg::NoCooldown => "USE YOUR NADE",
+                        }
                 },
-                &CooldownMsg::NoCooldown => cx.render(rsx! {
-                    div {}
-                }),
+                &CooldownMsg::NoCooldown => {
+                    match shift_key_status.get() {
+                        &CooldownMsg::HasCooldown => "USE YOUR SLEEP",
+                        &CooldownMsg::NoCooldown => "",
+                    }
+                }
             }
-    }
+        }
     })
 }
 
