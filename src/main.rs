@@ -90,7 +90,7 @@ fn app(cx: Scope<AppProps>) -> Element {
                 match msg {
                     CooldownMsg::HasCooldown => println!("has cooldown msg"),
                     CooldownMsg::NoCooldown => {
-                        tokio::time::sleep(Duration::from_secs(14)).await;
+                        tokio::time::sleep(Duration::from_millis(14700)).await;
                         shift_key_status.set(CooldownMsg::HasCooldown);
                         println!("Shift: {:?}", shift_key_status.get());
                     }
@@ -106,7 +106,7 @@ fn app(cx: Scope<AppProps>) -> Element {
                 match msg {
                     CooldownMsg::HasCooldown => println!("re-upped cooldown"),
                     CooldownMsg::NoCooldown => {
-                        tokio::time::sleep(Duration::from_secs(10)).await;
+                        tokio::time::sleep(Duration::from_millis(10690)).await;
                         e_key_status.set(CooldownMsg::HasCooldown);
                         println!("EKey: {:?}", e_key_status.get());
                     }
