@@ -50,14 +50,7 @@ fn app(cx: Scope<AppProps>) -> Element {
     let e_key_status = use_state(cx, || CooldownMsg::HasCooldown);
     let shift_key_status = use_state(cx, || CooldownMsg::HasCooldown);
 
-    // handle turn off e key cooldown
-    use_effect(cx, e_key_status, |e_key_status| async move {
-        if e_key_status.get() == &CooldownMsg::NoCooldown {
-            tokio::time::sleep(Duration::from_secs(8)).await;
-            e_key_status.set(CooldownMsg::HasCooldown);
-            println!("reset cooldown.");
-        }
-    });
+    // All cooldowns handler coroutine.
     let _: &Coroutine<()> = use_coroutine(cx, |_| {
         let recv = cx.props.receiver.take();
         let e_key_status = e_key_status.to_owned();
@@ -86,19 +79,46 @@ fn app(cx: Scope<AppProps>) -> Element {
     let shift_coroutine = use_coroutine(cx, |mut rx: UnboundedReceiver<CooldownMsg>| {
         let shift_key_status = shift_key_status.to_owned();
         async move {
-            match rx.next().await {
-                Some(msg) => match msg {
+            while let Some(msg) = rx.next().await {
+                match msg {
                     CooldownMsg::HasCooldown => println!("has cooldown msg"),
                     CooldownMsg::NoCooldown => {
                         tokio::time::sleep(Duration::from_secs(8)).await;
                         shift_key_status.set(CooldownMsg::HasCooldown);
-                        println!("no cooldown msg");
+                        println!("Shift: {:?}", shift_key_status.get());
                     }
-                },
-                None => (),
+                };
             }
         }
     });
+    // handle turn off shift e key cooldown
+    let e_key_coroutine = use_coroutine(cx, |mut rx: UnboundedReceiver<CooldownMsg>| {
+        let e_key_status = e_key_status.to_owned();
+        async move {
+            while let Some(msg) = rx.next().await {
+                match msg {
+                    CooldownMsg::HasCooldown => println!("re-upped cooldown"),
+                    CooldownMsg::NoCooldown => {
+                        tokio::time::sleep(Duration::from_secs(8)).await;
+                        e_key_status.set(CooldownMsg::HasCooldown);
+                        println!("EKey: {:?}", e_key_status.get());
+                    }
+                };
+            }
+        }
+    });
+    // handle turn off e key cooldown
+    use_effect(cx, e_key_status, |e_key_status| {
+        let e_key_status = e_key_status.to_owned();
+        let e_key_coroutine = e_key_coroutine.to_owned();
+        async move {
+            if e_key_status.get() == &CooldownMsg::NoCooldown {
+                e_key_coroutine.send(CooldownMsg::NoCooldown);
+                println!("e-key reset cooldown sent to coroutine");
+            }
+        }
+    });
+    // shift key effect
     use_effect(cx, shift_key_status, |shift_key_status| {
         let shift_key_status = shift_key_status.to_owned();
         let shift_coroutine = shift_coroutine.to_owned();
