@@ -90,7 +90,7 @@ fn app(cx: Scope<AppProps>) -> Element {
                 match msg {
                     CooldownMsg::HasCooldown => println!("has cooldown msg"),
                     CooldownMsg::NoCooldown => {
-                        tokio::time::sleep(Duration::from_millis(14700)).await;
+                        tokio::time::sleep(Duration::from_millis(14750)).await;
                         shift_key_status.set(CooldownMsg::HasCooldown);
                         println!("Shift: {:?}", shift_key_status.get());
                     }
@@ -145,12 +145,16 @@ fn app(cx: Scope<AppProps>) -> Element {
     cx.render(rsx! {
         div {
             color: "red",
-            width: "1224px",
             height: "300px",
-            font_size: "100px",
+            width: "1224px",
+            font_size: "120px",
             white_space: "nowrap",
             text_align: "center",
-            class: "blinking_text",
+            class: if e_key_status.get() == &CooldownMsg::NoCooldown && shift_key_status.get() == &CooldownMsg::NoCooldown {
+                ""
+            }   else {
+                "blinking_text"
+            },
             font_family: "Comic Sans MS" ,
             background_color: "transparent",
             match e_key_status.get() {
@@ -163,7 +167,7 @@ fn app(cx: Scope<AppProps>) -> Element {
                 &CooldownMsg::NoCooldown => {
                     match shift_key_status.get() {
                         &CooldownMsg::HasCooldown => "USE YOUR SLEEP",
-                        &CooldownMsg::NoCooldown => "",
+                        &CooldownMsg::NoCooldown => "Are you doing damage?",
                     }
                 }
             }
@@ -193,6 +197,6 @@ fn make_window() -> WindowBuilder {
         .with_decorations(false)
         .with_always_on_top(true)
         .with_position(PhysicalPosition::new(900, 512))
-        .with_min_inner_size(LogicalSize::new(1224, 160))
-        .with_max_inner_size(LogicalSize::new(1224, 160))
+        .with_min_inner_size(LogicalSize::new(2048, 160))
+        .with_max_inner_size(LogicalSize::new(2048, 160))
 }
