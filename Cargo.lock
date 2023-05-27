@@ -1938,6 +1938,7 @@ dependencies = [
  "dioxus-desktop",
  "dioxus-signals",
  "futures-util",
+ "once_cell",
  "rdev",
  "rodio",
  "tokio",

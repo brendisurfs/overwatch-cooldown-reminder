@@ -137,7 +137,7 @@ fn app(cx: Scope<AppProps>) -> Element {
         }
     });
 
-    let style = r#"
+    let window_style = r#"
         display: flex;
         flex-direction: row;
     "#;
@@ -149,6 +149,7 @@ fn app(cx: Scope<AppProps>) -> Element {
             height: "300px",
             font_size: "60px",
             text_align: "center",
+            class: "blinking_text",
             background_color: "transparent",
             match e_key_status.get() {
                 &CooldownMsg::HasCooldown => {
