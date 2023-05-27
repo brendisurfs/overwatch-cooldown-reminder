@@ -147,9 +147,10 @@ fn app(cx: Scope<AppProps>) -> Element {
             color: "red",
             width: "100%",
             height: "300px",
-            font_size: "60px",
+            font_size: "100px",
             text_align: "center",
             class: "blinking_text",
+            font_family: "Comic Sans MS" ,
             background_color: "transparent",
             match e_key_status.get() {
                 &CooldownMsg::HasCooldown => {
